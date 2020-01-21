@@ -1,0 +1,85 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+
+def VERSION_NAME = project.VERSION_NAME
+def VERSION_CODE = Integer.parseInt(project.VERSION_CODE)
+
+def ANDROID_COMPILE_SDK_VERSION = Integer.parseInt(project.ANDROID_COMPILE_SDK_VERSION)
+def ANDROID_TARGET_SDK_VERSION = Integer.parseInt(project.ANDROID_TARGET_SDK_VERSION)
+def ANDROID_BUILD_TOOLS_VERSION = project.ANDROID_BUILD_TOOLS_VERSION
+def ANDROID_MIN_SDK_VERSION = Integer.parseInt(project.ANDROID_MIN_SDK_VERSION)
+
+def JAVA_COMPATIBILITY =  JavaVersion.valueOf(project.JAVA_COMPATIBILITY)
+
+android {
+    compileSdkVersion ANDROID_COMPILE_SDK_VERSION
+    buildToolsVersion ANDROID_BUILD_TOOLS_VERSION
+
+    defaultConfig {
+        minSdkVersion ANDROID_MIN_SDK_VERSION
+        targetSdkVersion ANDROID_TARGET_SDK_VERSION
+        versionCode VERSION_CODE
+        versionName VERSION_NAME
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JAVA_COMPATIBILITY
+        targetCompatibility JAVA_COMPATIBILITY
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.core:core-ktx:1.1.0'
+
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+}
+
+/*task createPom {
+    //apply plugin: 'com.github.dcendents.android-maven'
+    //apply from: 'https://raw.githubusercontent.com/sky-uk/gradle-maven-plugin/master/gradle-mavenizer.gradle'
+    apply plugin: 'maven'
+    description "Generates pom.xml"
+    pom {
+        project {
+            groupId POM_GROUP_ID
+            artifactId POM_ARTIFACT_ID
+            version VERSION_NAME
+            packaging 'aar'
+
+            inceptionYear POM_INCEPTION_YEAR
+            licenses {
+                license {
+                    name POM_LICENCE_NAME
+                    url POM_LICENCE_URL
+                    distribution POM_LICENCE_DIST
+                }
+            }
+        }
+    }.withXml {
+        def dependenciesNode = asNode().appendNode('dependencies')
+        configurations.implementation.allDependencies.each { dependency ->
+            if (dependency.name != 'unspecified') {
+                def dependencyNode = dependenciesNode.appendNode('dependency')
+                dependencyNode.appendNode('groupId', dependency.group)
+                dependencyNode.appendNode('artifactId', dependency.name)
+                dependencyNode.appendNode('version', dependency.version)
+            }
+        }
+    }.writeTo("pom.xml")
+    // based on https://gist.github.com/delor/f70560f14674b322dcd2
+}
+
+build.finalizedBy(createPom)*/
