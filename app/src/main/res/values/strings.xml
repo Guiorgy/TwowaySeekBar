@@ -2,5 +2,8 @@
 <resources>
 
     <string name="app_name">TwowaySeekBarDemo</string>
+    <string name="twoway_seek_bar_label">TwowaySeekBar with min=%1$f and max=%2$f</string>
+    <string name="min_seek_bar_label">Min value (SeekBar)</string>
+    <string name="max_seek_bar_label">Max value (SeekBar)</string>
 
 </resources>

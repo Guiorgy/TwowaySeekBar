@@ -17,16 +17,35 @@ class MainActivity : AppCompatActivity() {
         }
         twowaySeekBar.notifyWhileDragging = true
 
-        val seekBar = findViewById<SeekBar>(R.id.seek_bar)
-        seekBar.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
+        val minSeekBar = findViewById<SeekBar>(R.id.min_seek_bar)
+        minSeekBar.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                Log.d(LOGTAG, "seekbar value:$progress")
+                Log.d(LOGTAG, "twowayseekbar min value:$progress")
+                twowaySeekBar.minValue = progress.toDouble()
+                twowaySeekBar.startValue = (twowaySeekBar.maxValue + twowaySeekBar.minValue) / 2.0
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {
             }
 
-            override fun onStopTrackingTouch(sb: SeekBar?) {
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+            }
+        })
+
+        val maxSeekBar = findViewById<ReversedSeekBar>(R.id.max_seek_bar)
+        maxSeekBar.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (seekBar == null) return
+                @Suppress("NAME_SHADOWING") val progress = seekBar.max - progress + seekBar.min
+                Log.d(LOGTAG, "twowayseekbar max value:$progress")
+                twowaySeekBar.maxValue = progress.toDouble()
+                twowaySeekBar.startValue = (twowaySeekBar.maxValue + twowaySeekBar.minValue) / 2.0
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+            }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
             }
         })
     }
