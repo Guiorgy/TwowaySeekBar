@@ -8,17 +8,17 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Created by vashisthg on 01/04/14.
  * https://github.com/vashisthg/StartPointSeekBar
  * Modified by Guiorgy
  */
-class TwowaySeekBar @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
-) : View(context, attrs, defStyleAttr) {
+class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0)
+    : View(context, attrs, defStyleAttr) {
     private val thumbImage: Bitmap
     private val thumbPressedImage: Bitmap
     private val defaultRangeColor: Int
@@ -33,25 +33,53 @@ class TwowaySeekBar @JvmOverloads constructor(
     private var normalizedThumbValue = 0.0
     private var mDownMotionX = 0f
     private var mActivePointerId = INVALID_POINTER_ID
-    private var listener: OnSeekBarChangedListener? = null
-
-    var absoluteMinValue: Double
-    var absoluteMaxValue: Double
+    private var listener: OnProgressChangeListener? = null
     /**
      * Whether to call the OnSeekBarChangedListener while dragging, or
      * only at the end of it.
      */
     var notifyWhileDragging = false
 
+    var minValue: Double = 0.0
+    set(value) {
+        field = value
+        invalidate()
+    }
+
+    var startValue: Double = 0.0
+    set(value) {
+        field = value
+        invalidate()
+    }
+
+    var maxValue: Double = 0.0
+    set(value) {
+        field = value
+        invalidate()
+    }
+
+    /**
+     * Sets value of seekbar to the given value
+     */
+    var progress: Double
+    get() = normalizedThumbValue
+    set(value) {
+        var newThumbValue = normalizeValue(value)
+        if (newThumbValue > maxValue) newThumbValue = maxValue
+        if (newThumbValue < minValue) newThumbValue = minValue
+        normalizedThumbValue = newThumbValue
+        invalidate()
+    }
+
     /**
      * Callback listener interface to notify about changed range values.
      *
      */
     @FunctionalInterface
-    interface OnSeekBarChangedListener {
-        fun onOnSeekBarValueChanged(
+    interface OnProgressChangeListener {
+        fun onProgressChanged(
             seekBar: TwowaySeekBar?,
-            value: Double
+            progress: Double
         )
     }
 
@@ -61,9 +89,7 @@ class TwowaySeekBar @JvmOverloads constructor(
      *
      * @param listener The listener to notify about changed selected values.
      */
-    fun setOnSeekBarChangedListener(
-        listener: OnSeekBarChangedListener?
-    ) {
+    fun setOnProgressChangeListener(listener: OnProgressChangeListener?) {
         this.listener = listener
     }
 
@@ -73,26 +99,23 @@ class TwowaySeekBar @JvmOverloads constructor(
      *
      * @param listener The listener to notify about changed selected values.
      */
-    inline fun onSeekBarChangedListener(crossinline listener: (seekBar: TwowaySeekBar?, value: Double) -> Unit) {
-        setOnSeekBarChangedListener(object : OnSeekBarChangedListener {
-            override fun onOnSeekBarValueChanged(seekBar: TwowaySeekBar?, value: Double) {
-                listener(seekBar, value)
+    inline fun onProgressChange(crossinline listener: (seekBar: TwowaySeekBar?, progress: Double) -> Unit) {
+        setOnProgressChangeListener(object : OnProgressChangeListener {
+            override fun onProgressChanged(seekBar: TwowaySeekBar?, progress: Double) {
+                listener(seekBar, progress)
             }
         })
     }
 
     @Synchronized
-    override fun onMeasure(
-        widthMeasureSpec: Int,
-        heightMeasureSpec: Int
-    ) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         var width = 200
         if (MeasureSpec.UNSPECIFIED != MeasureSpec.getMode(widthMeasureSpec)) {
             width = MeasureSpec.getSize(widthMeasureSpec)
         }
         var height = thumbImage.height
         if (MeasureSpec.UNSPECIFIED != MeasureSpec.getMode(heightMeasureSpec)) {
-            height = Math.min(height, MeasureSpec.getSize(heightMeasureSpec))
+            height = min(height, MeasureSpec.getSize(heightMeasureSpec))
         }
         setMeasuredDimension(width, height)
     }
@@ -132,9 +155,9 @@ class TwowaySeekBar @JvmOverloads constructor(
                     }
                 }
                 if (notifyWhileDragging && listener != null) {
-                    listener!!.onOnSeekBarValueChanged(
+                    listener!!.onProgressChanged(
                         this,
-                        normalizedToValue(normalizedThumbValue)
+                        recoverValue(normalizedThumbValue)
                     )
                 }
             }
@@ -152,9 +175,9 @@ class TwowaySeekBar @JvmOverloads constructor(
                 isThumbPressed = false
                 invalidate()
                 if (listener != null) {
-                    listener!!.onOnSeekBarValueChanged(
+                    listener!!.onProgressChanged(
                         this,
-                        normalizedToValue(normalizedThumbValue)
+                        recoverValue(normalizedThumbValue)
                     )
                 }
             }
@@ -198,9 +221,8 @@ class TwowaySeekBar @JvmOverloads constructor(
      * ancestors from stealing events in the drag.
      */
     private fun attemptClaimDrag() {
-        if (parent != null) {
+        if (parent != null)
             parent.requestDisallowInterceptTouchEvent(true)
-        }
     }
 
     private fun trackTouchEvent(event: MotionEvent) {
@@ -222,7 +244,7 @@ class TwowaySeekBar @JvmOverloads constructor(
         } else {
             val result =
                 (screenCoordinate - padding) / (width - 2 * padding).toDouble()
-            Math.min(1.0, Math.max(0.0, result))
+            min(1.0, max(0.0, result))
         }
     }
 
@@ -233,8 +255,8 @@ class TwowaySeekBar @JvmOverloads constructor(
      * @param normalized
      * @return
      */
-    private fun normalizedToValue(normalized: Double): Double {
-        return absoluteMinValue + normalized * absoluteMaxValue - absoluteMinValue
+    private fun recoverValue(normalized: Double): Double {
+        return minValue + normalized * (maxValue - minValue)
     }
 
     /**
@@ -243,10 +265,9 @@ class TwowaySeekBar @JvmOverloads constructor(
      * @param value The Number value to normalize.
      * @return The normalized double.
      */
-    private fun valueToNormalized(value: Double): Double {
-        return if (0.0 == absoluteMaxValue - absoluteMinValue) { // prevent division by zero, simply return 0.
-            0.0
-        } else (value - absoluteMinValue) / (absoluteMaxValue - absoluteMinValue)
+    private fun normalizeValue(value: Double): Double {
+        val result = (value - minValue) / (maxValue - minValue)
+        return if (result.isFinite()) result else 0.0
     }
 
     /**
@@ -256,19 +277,7 @@ class TwowaySeekBar @JvmOverloads constructor(
      * @param value The new normalized max value to set.
      */
     private fun setNormalizedValue(value: Double) {
-        normalizedThumbValue = Math.max(0.0, value)
-        invalidate()
-    }
-
-    /**
-     * Sets value of seekbar to the given value
-     * @param value The new value to set
-     */
-    fun setProgress(value: Double) {
-        var newThumbValue = valueToNormalized(value)
-        if (newThumbValue > absoluteMaxValue) newThumbValue = absoluteMaxValue
-        if (newThumbValue < absoluteMinValue) newThumbValue = absoluteMinValue
-        normalizedThumbValue = newThumbValue
+        normalizedThumbValue = max(0.0, value)
         invalidate()
     }
 
@@ -309,7 +318,7 @@ class TwowaySeekBar @JvmOverloads constructor(
         touchX: Float,
         normalizedThumbValue: Double
     ): Boolean {
-        return Math.abs(touchX - normalizedToScreen(normalizedThumbValue)) <= thumbHalfWidth
+        return abs(touchX - normalizedToScreen(normalizedThumbValue)) <= thumbHalfWidth
     }
 
     /**
@@ -322,10 +331,13 @@ class TwowaySeekBar @JvmOverloads constructor(
         return (padding + normalizedCoordinate * (width - 2 * padding)).toFloat()
     }
 
+    private val rect = RectF()
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        val width = width
+        val height = height
         // draw seek bar background line
-        val rect = RectF(
+        rect.set(
             padding,
             0.5f * (height - lineHeight), width - padding,
             0.5f * (height + lineHeight)
@@ -333,11 +345,11 @@ class TwowaySeekBar @JvmOverloads constructor(
         paint.color = defaultBackgroundColor
         canvas.drawRect(rect, paint)
         // draw seek bar active range line
-        if (normalizedToScreen(valueToNormalized(0.0)) < normalizedToScreen(normalizedThumbValue)) {
-            rect.left = normalizedToScreen(valueToNormalized(0.0))
+        if (normalizedToScreen(normalizeValue(startValue)) < normalizedToScreen(normalizedThumbValue)) {
+            rect.left = normalizedToScreen(normalizeValue(startValue))
             rect.right = normalizedToScreen(normalizedThumbValue)
         } else {
-            rect.right = normalizedToScreen(valueToNormalized(0.0))
+            rect.right = normalizedToScreen(normalizeValue(startValue))
             rect.left = normalizedToScreen(normalizedThumbValue)
         }
         paint.color = defaultRangeColor
@@ -355,21 +367,15 @@ class TwowaySeekBar @JvmOverloads constructor(
      * @param pressed           Is the thumb currently in "pressed" state?
      * @param canvas            The canvas to draw upon.
      */
-    private fun drawThumb(
-        screenCoordinate: Float,
-        pressed: Boolean,
-        canvas: Canvas
-    ) {
+    private fun drawThumb(screenCoordinate: Float, pressed: Boolean, canvas: Canvas) {
         canvas.drawBitmap(
-            if (pressed) thumbPressedImage else thumbImage, screenCoordinate
-                    - thumbHalfWidth,
-            0.5f * height - thumbHalfHeight, paint
-        )
+            if (pressed) thumbPressedImage else thumbImage
+            , screenCoordinate - thumbHalfWidth
+            , 0.5f * height - thumbHalfHeight, paint)
     }
 
     companion object {
-        private val paint =
-            Paint(Paint.ANTI_ALIAS_FLAG)
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         private val DEFAULT_RANGE_COLOR = Color.argb(0xFF, 0x33, 0xB5, 0xE5)
         private const val DEFAULT_BACKGROUND_COLOR = Color.GRAY
         private const val DEFAULT_MIN_VALUE = -100f
@@ -391,40 +397,43 @@ class TwowaySeekBar @JvmOverloads constructor(
             attrs, R.styleable.TwowaySeekBar,
             defStyleAttr, 0
         )
-        var thumbImageDrawable = a.getDrawable(R.styleable.TwowaySeekBar_thumbDrawable)
-        if (thumbImageDrawable == null) {
-            @Suppress("DEPRECATION")
-            thumbImageDrawable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
-                context.getDrawable(R.drawable.seek_thumb_normal)
-            else resources.getDrawable(R.drawable.seek_thumb_normal)
+        try {
+            var thumbImageDrawable = a.getDrawable(R.styleable.TwowaySeekBar_thumbDrawable)
+            if (thumbImageDrawable == null) {
+                @Suppress("DEPRECATION")
+                thumbImageDrawable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                    context.getDrawable(R.drawable.seek_thumb_normal)
+                else resources.getDrawable(R.drawable.seek_thumb_normal)
+            }
+            thumbImage = (thumbImageDrawable as BitmapDrawable?)!!.bitmap
+            var thumbImagePressedDrawable =
+                a.getDrawable(R.styleable.TwowaySeekBar_thumbPressedDrawable)
+            if (thumbImagePressedDrawable == null) {
+                @Suppress("DEPRECATION")
+                thumbImagePressedDrawable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                    context.getDrawable(R.drawable.seek_thumb_pressed)
+                else resources.getDrawable(R.drawable.seek_thumb_pressed)
+            }
+            thumbPressedImage = (thumbImagePressedDrawable as BitmapDrawable?)!!.bitmap
+            minValue = a.getFloat(
+                R.styleable.TwowaySeekBar_minValue,
+                DEFAULT_MIN_VALUE
+            ).toDouble()
+            maxValue = a.getFloat(
+                R.styleable.TwowaySeekBar_maxValue,
+                DEFAULT_MAX_VALUE
+            ).toDouble()
+            defaultBackgroundColor = a.getColor(
+                R.styleable.TwowaySeekBar_defaultBackgroundColor,
+                DEFAULT_BACKGROUND_COLOR
+            )
+            defaultRangeColor = a.getColor(
+                R.styleable.TwowaySeekBar_defaultBackgroundRangeColor,
+                DEFAULT_RANGE_COLOR
+            )
+        } finally {
+            a.recycle()
         }
-        thumbImage = (thumbImageDrawable as BitmapDrawable?)!!.bitmap
-        var thumbImagePressedDrawable =
-            a.getDrawable(R.styleable.TwowaySeekBar_thumbPressedDrawable)
-        if (thumbImagePressedDrawable == null) {
-            @Suppress("DEPRECATION")
-            thumbImagePressedDrawable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
-                context.getDrawable(R.drawable.seek_thumb_pressed)
-            else resources.getDrawable(R.drawable.seek_thumb_pressed)
-        }
-        thumbPressedImage = (thumbImagePressedDrawable as BitmapDrawable?)!!.bitmap
-        absoluteMinValue = a.getFloat(
-            R.styleable.TwowaySeekBar_minValue,
-            DEFAULT_MIN_VALUE
-        ).toDouble()
-        absoluteMaxValue = a.getFloat(
-            R.styleable.TwowaySeekBar_maxValue,
-            DEFAULT_MAX_VALUE
-        ).toDouble()
-        defaultBackgroundColor = a.getColor(
-            R.styleable.TwowaySeekBar_defaultBackgroundColor,
-            DEFAULT_BACKGROUND_COLOR
-        )
-        defaultRangeColor = a.getColor(
-            R.styleable.TwowaySeekBar_defaultBackgroundRangeColor,
-            DEFAULT_RANGE_COLOR
-        )
-        a.recycle()
         val thumbWidth = thumbImage.width.toFloat()
         thumbHalfWidth = 0.5f * thumbWidth
         thumbHalfHeight = 0.5f * thumbImage.height
@@ -435,4 +444,6 @@ class TwowaySeekBar @JvmOverloads constructor(
         scaledTouchSlop = ViewConfiguration.get(getContext())
             .scaledTouchSlop
     }
+
+    override fun getAccessibilityClassName(): CharSequence? = TwowaySeekBar::class.qualifiedName
 }
