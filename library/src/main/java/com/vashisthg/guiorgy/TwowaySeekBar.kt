@@ -13,6 +13,10 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import androidx.annotation.RequiresApi
+import androidx.appcompat.widget.ViewUtils.isLayoutRtl
+import androidx.core.util.Preconditions
+import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -148,7 +152,7 @@ open class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attr
 
         if (value != null) {
             value.callback = this
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&canResolveLayoutDirection())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && canResolveLayoutDirection())
                 value.layoutDirection = layoutDirection
 
             // Assuming the thumb drawable is symmetric, set the thumb offset
@@ -178,7 +182,6 @@ open class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attr
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     var thumbTintList: ColorStateList? = null
     /**
      * Applies a tint to the thumb drawable. Does not modify the current tint
@@ -201,7 +204,6 @@ open class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attr
         applyThumbTint()
     }
 
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     var thumbTintMode: PorterDuff.Mode? = PorterDuff.Mode.SRC_IN
     /**
      * Specifies the blending mode used to apply the tint specified by
@@ -221,6 +223,65 @@ open class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attr
         hasThumbTintMode = true
         applyThumbTint()
     }
+
+    var track: Drawable? = null
+    set(value) {
+        if (field == value)
+            return
+
+        if (field != null) {
+            field!!.callback = null
+            unscheduleDrawable(field)
+        }
+
+        field = value
+
+        if (value != null) {
+            value.callback = this
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && canResolveLayoutDirection())
+                value.layoutDirection = layoutDirection
+
+            if (value.isStateful) {
+                value.state = drawableState
+            }
+
+            // Make sure the ProgressBar is always tall enough
+            val drawableHeight: Int = value.minimumHeight
+            if (maxHeight < drawableHeight) {
+                maxHeight = drawableHeight
+                requestLayout()
+            }
+
+            //applyProgressTints() todo
+        }
+    }
+
+    var minWidth: Int = 24
+    set(value) {
+        field = value
+        requestLayout()
+    }
+
+    var maxWidth: Int = 48
+    set(value) {
+        field = value
+        requestLayout()
+    }
+    var minHeight: Int = 24
+    set(value) {
+        field = value
+        requestLayout()
+    }
+
+    protected var maxHeight: Int = 48
+    set(value) {
+        field = value
+        requestLayout()
+    }
+
+    var mirrorForRtl: Boolean = false
+    protected set
     // endregion
 
     // region listeners
@@ -293,39 +354,6 @@ open class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attr
         }
     }
 
-    protected fun updateThumbAndTrackPos(width: Int, height: Int) {
-        /*val paddedHeight: Int = height - mPaddingTop - mPaddingBottom
-        val track: Drawable? = getCurrentDrawable()
-        val thumb: Drawable? = thumb
-
-        // The max height does not incorporate padding, whereas the height
-        // parameter does.
-        val trackHeight = min(maxHeight, paddedHeight)
-        val thumbHeight = thumb?.intrinsicHeight ?: 0
-
-        // Apply offset to whichever item is taller.
-        val trackOffset: Int
-        val thumbOffset: Int
-        if (thumbHeight > trackHeight) {
-            val offsetHeight = (paddedHeight - thumbHeight) / 2
-            trackOffset = offsetHeight + (thumbHeight - trackHeight) / 2
-            thumbOffset = offsetHeight
-        } else {
-            val offsetHeight = (paddedHeight - trackHeight) / 2
-            trackOffset = offsetHeight
-            thumbOffset = offsetHeight + (trackHeight - thumbHeight) / 2
-        }
-
-        if (track != null) {
-            val trackWidth: Int = width - mPaddingRight - mPaddingLeft
-            track.setBounds(0, trackOffset, trackWidth, trackOffset + trackHeight)
-        }
-
-        if (thumb != null) {
-            setThumbPos(width, thumb, normalizedProgress, thumbOffset)
-        }*/
-    }
-
     /**
      * Converts a normalized value to a Number object in the value space between
      * absolute minimum and maximum.
@@ -346,95 +374,6 @@ open class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attr
     protected fun normalizeValue(value: Double): Double {
         val result = (value - minValue) / (maxValue - minValue)
         return if (result.isFinite()) result else 0.0
-    }
-    // endregion
-
-    @Synchronized
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        var width = 200
-        if (MeasureSpec.UNSPECIFIED != MeasureSpec.getMode(widthMeasureSpec)) {
-            width = MeasureSpec.getSize(widthMeasureSpec)
-        }
-        var height = thumbImage.height
-        if (MeasureSpec.UNSPECIFIED != MeasureSpec.getMode(heightMeasureSpec)) {
-            height = min(height, MeasureSpec.getSize(heightMeasureSpec))
-        }
-        setMeasuredDimension(width, height)
-    }
-
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!isEnabled) return false
-        val pointerIndex: Int
-        val action = event.action
-        when (action and MotionEvent.ACTION_MASK) {
-            MotionEvent.ACTION_DOWN -> {
-                // Remember where the motion event started
-                mActivePointerId = event.getPointerId(event.pointerCount - 1)
-                pointerIndex = event.findPointerIndex(mActivePointerId)
-                mDownMotionX = event.getX(pointerIndex)
-                isThumbPressed = evalPressedThumb(mDownMotionX)
-                // Only handle thumb presses.
-                if (!isThumbPressed)
-                    return true
-                isPressed = true
-                invalidate()
-                isDragging = true
-                trackTouchEvent(event)
-                attemptClaimDrag()
-            }
-            MotionEvent.ACTION_MOVE -> if (isThumbPressed) {
-                if (isDragging) {
-                    trackTouchEvent(event)
-                } else { // Scroll to follow the motion event
-                    pointerIndex = event.findPointerIndex(mActivePointerId)
-                    val x = event.getX(pointerIndex)
-                    if (Math.abs(x - mDownMotionX) > scaledTouchSlop) {
-                        isPressed = true
-                        invalidate()
-                        isDragging = true
-                        trackTouchEvent(event)
-                        attemptClaimDrag()
-                    }
-                }
-                if (notifyWhileDragging)
-                    callOnProgressChange()
-            }
-            MotionEvent.ACTION_UP -> {
-                if (isDragging) {
-                    trackTouchEvent(event)
-                    isDragging = false
-                    isPressed = false
-                } else {
-                    // Touch up when we never crossed the touch slop threshold
-                    // should be interpreted as a tap-seek to that location.
-                    isDragging = true
-                    trackTouchEvent(event)
-                    isDragging = false
-                }
-                isThumbPressed = false
-                invalidate()
-                callOnProgressChange()
-            }
-            MotionEvent.ACTION_POINTER_DOWN -> {
-                val index = event.pointerCount - 1
-                // final int index = ev.getActionIndex();
-                mDownMotionX = event.getX(index)
-                mActivePointerId = event.getPointerId(index)
-                invalidate()
-            }
-            MotionEvent.ACTION_POINTER_UP -> {
-                onSecondaryPointerUp(event)
-                invalidate()
-            }
-            MotionEvent.ACTION_CANCEL -> {
-                if (isDragging) {
-                    isDragging = false
-                    isPressed = false
-                }
-                invalidate() // see above explanation
-            }
-        }
-        return true
     }
 
     protected fun onSecondaryPointerUp(ev: MotionEvent) {
@@ -528,6 +467,215 @@ open class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attr
         return (padding + normalizedCoordinate * (width - 2 * padding)).toFloat()
     }
 
+    /**
+     * Draws the "normal" resp. "pressed" thumb image on specified x-coordinate.
+     *
+     * @param screenCoordinate  The x-coordinate in screen space where to draw the image.
+     * @param pressed           Is the thumb currently in "pressed" state?
+     * @param canvas            The canvas to draw upon.
+     */
+    protected fun drawThumb(screenCoordinate: Float, pressed: Boolean, canvas: Canvas) {
+        canvas.drawBitmap(
+            if (pressed) thumbPressedImage else thumbImage
+            , screenCoordinate - thumbHalfWidth
+            , 0.5f * height - thumbHalfHeight, paint)
+    }
+    // endregion
+
+    // region private methods
+    private fun updateThumbAndTrackPos(width: Int, height: Int) {
+        val paddedHeight: Int = height - paddingTop - paddingBottom
+
+        // The max height does not incorporate padding, whereas the height
+        // parameter does.
+        val trackHeight = min(maxHeight, paddedHeight)
+        val thumbHeight = thumb?.intrinsicHeight ?: 0
+
+        // Apply offset to whichever item is taller.
+        val trackOffset: Int
+        val thumbOffset: Int
+        if (thumbHeight > trackHeight) {
+            val offsetHeight = (paddedHeight - thumbHeight) / 2
+            trackOffset = offsetHeight + (thumbHeight - trackHeight) / 2
+            thumbOffset = offsetHeight
+        } else {
+            val offsetHeight = (paddedHeight - trackHeight) / 2
+            trackOffset = offsetHeight
+            thumbOffset = offsetHeight + (trackHeight - thumbHeight) / 2
+        }
+
+        if (track != null) {
+            val trackWidth: Int = width - paddingRight - paddingLeft
+            track!!.setBounds(0, trackOffset, trackWidth, trackOffset + trackHeight)
+        }
+
+        if (thumb != null) {
+            setThumbPos(width, thumb!!, thumbOffset)
+        }
+    }
+
+    /**
+     * Updates the thumb drawable bounds.
+     *
+     * @param width Width of the view, including padding
+     * @param thumb Drawable used for the thumb
+     * @param offset Vertical offset for centering. If set to
+     *          [Integer.MIN_VALUE], the current offset will be used.
+     */
+    private fun setThumbPos(width: Int, thumb: Drawable, offset: Int) {
+        var available: Int = width - paddingLeft - paddingRight
+        val thumbWidth = thumb.intrinsicWidth
+        val thumbHeight = thumb.intrinsicHeight
+        available -= thumbWidth
+
+        // The extra space for the thumb to move on the track
+        available += thumbOffset * 2
+
+        val thumbPos = (normalizedProgress * available + 0.5f).toInt()
+
+        val top: Int
+        val bottom: Int
+        if (offset == Int.MIN_VALUE) {
+            val oldBounds = thumb.bounds
+            top = oldBounds.top
+            bottom = oldBounds.bottom
+        } else {
+            top = offset
+            bottom = offset + thumbHeight
+        }
+
+        val left = if (isLayoutRtl(this) && mirrorForRtl) available - thumbPos else thumbPos
+
+        val right = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val right = left + thumbWidth
+            val background = background
+            if (background != null) {
+                val offsetX: Int = paddingLeft - thumbOffset
+                val offsetY: Int = paddingTop
+                background.setHotspotBounds(
+                    left + offsetX, top + offsetY,
+                    right + offsetX, bottom + offsetY
+                )
+            }
+            right
+        } else {
+            left + thumbWidth
+        }
+
+        // Canvas will be translated, so 0,0 is where we start drawing
+        thumb.setBounds(left, top, right, bottom)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+            updateGestureExclusionRects()
+    }
+
+    private val thumbRect = Rect()
+    private val gestureExclusionRects = ArrayList<Rect>()
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun updateGestureExclusionRects(rects: List<Rect> = Collections.emptyList()) {
+        if (thumb == null) {
+            super.setSystemGestureExclusionRects(rects)
+            return
+        }
+        gestureExclusionRects.clear()
+        thumb!!.copyBounds(thumbRect)
+        gestureExclusionRects.add(thumbRect)
+        gestureExclusionRects.addAll(rects)
+        super.setSystemGestureExclusionRects(gestureExclusionRects)
+    }
+    // endregion
+
+    // region overridden methods
+    @Synchronized
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        var width = 200
+        if (MeasureSpec.UNSPECIFIED != MeasureSpec.getMode(widthMeasureSpec)) {
+            width = MeasureSpec.getSize(widthMeasureSpec)
+        }
+        var height = thumbImage.height
+        if (MeasureSpec.UNSPECIFIED != MeasureSpec.getMode(heightMeasureSpec)) {
+            height = min(height, MeasureSpec.getSize(heightMeasureSpec))
+        }
+        setMeasuredDimension(width, height)
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (!isEnabled) return false
+
+        val pointerIndex: Int
+        val action = event.action
+        when (action and MotionEvent.ACTION_MASK) {
+            MotionEvent.ACTION_DOWN -> {
+                // Remember where the motion event started
+                mActivePointerId = event.getPointerId(event.pointerCount - 1)
+                pointerIndex = event.findPointerIndex(mActivePointerId)
+                mDownMotionX = event.getX(pointerIndex)
+                isThumbPressed = evalPressedThumb(mDownMotionX)
+                // Only handle thumb presses.
+                if (!isThumbPressed)
+                    return true
+                isPressed = true
+                invalidate()
+                isDragging = true
+                trackTouchEvent(event)
+                attemptClaimDrag()
+            }
+            MotionEvent.ACTION_MOVE -> if (isThumbPressed) {
+                if (isDragging) {
+                    trackTouchEvent(event)
+                } else { // Scroll to follow the motion event
+                    pointerIndex = event.findPointerIndex(mActivePointerId)
+                    val x = event.getX(pointerIndex)
+                    if (Math.abs(x - mDownMotionX) > scaledTouchSlop) {
+                        isPressed = true
+                        invalidate()
+                        isDragging = true
+                        trackTouchEvent(event)
+                        attemptClaimDrag()
+                    }
+                }
+                if (notifyWhileDragging)
+                    callOnProgressChange()
+            }
+            MotionEvent.ACTION_UP -> {
+                if (isDragging) {
+                    trackTouchEvent(event)
+                    isDragging = false
+                    isPressed = false
+                } else {
+                    // Touch up when we never crossed the touch slop threshold
+                    // should be interpreted as a tap-seek to that location.
+                    isDragging = true
+                    trackTouchEvent(event)
+                    isDragging = false
+                }
+                isThumbPressed = false
+                invalidate()
+                callOnProgressChange()
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                val index = event.pointerCount - 1
+                // final int index = ev.getActionIndex();
+                mDownMotionX = event.getX(index)
+                mActivePointerId = event.getPointerId(index)
+                invalidate()
+            }
+            MotionEvent.ACTION_POINTER_UP -> {
+                onSecondaryPointerUp(event)
+                invalidate()
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                if (isDragging) {
+                    isDragging = false
+                    isPressed = false
+                }
+                invalidate() // see above explanation
+            }
+        }
+        return true
+    }
+
     protected val rect = RectF()
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -558,19 +706,24 @@ open class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attr
         drawThumb(normalizedToScreen(normalizedProgress), isThumbPressed, canvas)
     }
 
-    /**
-     * Draws the "normal" resp. "pressed" thumb image on specified x-coordinate.
-     *
-     * @param screenCoordinate  The x-coordinate in screen space where to draw the image.
-     * @param pressed           Is the thumb currently in "pressed" state?
-     * @param canvas            The canvas to draw upon.
-     */
-    protected fun drawThumb(screenCoordinate: Float, pressed: Boolean, canvas: Canvas) {
-        canvas.drawBitmap(
-            if (pressed) thumbPressedImage else thumbImage
-            , screenCoordinate - thumbHalfWidth
-            , 0.5f * height - thumbHalfHeight, paint)
+    override fun postInvalidate() {
+        //if (!noInvalidate)
+            super.postInvalidate()
     }
+
+    override fun invalidate() {
+        //if (!noInvalidate)
+            super.invalidate()
+    }
+
+    override fun getAccessibilityClassName(): CharSequence? = TwowaySeekBar::class.qualifiedName
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    override fun setSystemGestureExclusionRects(rects: List<Rect>) {
+        Preconditions.checkNotNull(rects, "rects must not be null")
+        updateGestureExclusionRects(rects)
+    }
+    // endregion
 
     companion object {
         protected val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -669,16 +822,4 @@ open class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attr
         scaledTouchSlop = ViewConfiguration.get(context)
             .scaledTouchSlop
     }
-
-    override fun postInvalidate() {
-        //if (!noInvalidate)
-            super.postInvalidate()
-    }
-
-    override fun invalidate() {
-        //if (!noInvalidate)
-            super.invalidate()
-    }
-
-    override fun getAccessibilityClassName(): CharSequence? = TwowaySeekBar::class.qualifiedName
 }
