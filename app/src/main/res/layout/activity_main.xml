@@ -85,14 +85,15 @@
         android:textStyle="bold"
         android:text="@string/max_seek_bar_label"/>
 
-    <com.vashisthg.guiorgy.demo.ReversedSeekBar
+    <com.vashisthg.guiorgy.demo.ReverseSeekBar
         android:id="@+id/max_seek_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="@dimen/activity_vertical_margin"
         android:min="-50"
         android:max="50"
-        android:progress="50"/>
+        android:progress="-50"
+        android:rotationY="180"/>
 
     <Button
         android:id="@+id/set_random_btn"

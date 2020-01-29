@@ -21,7 +21,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var minSeekBar: SeekBar
 
     private lateinit var maxLabel: TextView
-    private lateinit var maxSeekBar: ReversedSeekBar
+    private lateinit var maxSeekBar: ReverseSeekBar
 
     private fun updateLabels() {
         twowayLabel.text = resources.getString(R.string.twoway_seek_bar_label, twowaySeekBar.startValue, twowaySeekBar.progress)
@@ -79,8 +79,6 @@ class MainActivity : AppCompatActivity() {
         maxSeekBar.setOnSeekBarChangeListener(object: ProgressListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (!fromUser) return
-                if (seekBar == null) return
-                @Suppress("NAME_SHADOWING") val progress = seekBar.max - progress + seekBar.min
                 twowaySeekBar.maxValue = progress.toDouble()
                 updateLabels()
                 Log.d(TAG, "twowayseekbar max value=$progress (progress=${twowaySeekBar.progress})")

@@ -2,7 +2,7 @@
 <resources>
 
     <string name="app_name">TwowaySeekBarDemo</string>
-    <string name="twoway_seek_bar_label">TwowaySeekBar (%2$f)</string>
+    <string name="twoway_seek_bar_label">TwowaySeekBar (%1$f)</string>
     <string name="start_seek_bar_label">Start value (%1$f)</string>
     <string name="min_seek_bar_label">Min value (%1$f)</string>
     <string name="max_seek_bar_label">Max value (%1$f)</string>
