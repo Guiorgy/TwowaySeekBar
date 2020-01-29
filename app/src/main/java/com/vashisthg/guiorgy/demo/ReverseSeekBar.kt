@@ -23,4 +23,12 @@ class ReversedSeekBar : SeekBar {
         event.setLocation(this.width - event.x, event.y)
         return super.onTouchEvent(event)
     }
+
+    override fun getProgress(): Int {
+        return max - super.getProgress() + min
+    }
+
+    override fun setProgress(progress: Int) {
+        super.setProgress(max - progress + min)
+    }
 }

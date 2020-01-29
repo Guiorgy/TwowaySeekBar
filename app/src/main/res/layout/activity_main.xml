@@ -16,6 +16,7 @@
         android:layout_weight="1"/>
 
     <TextView
+        android:id="@+id/twoway_seek_bar_label"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="@dimen/activity_vertical_margin"
@@ -32,10 +33,31 @@
         custom:minValue="-50.0"
         custom:maxValue="50.0"
         android:progress="0"
+        android:thumb="@android:drawable/gallery_thumb"
         custom:defaultBackgroundColor="@color/default_background_color"
         custom:defaultBackgroundRangeColor="@color/default_background_range_color"/>
 
     <TextView
+        android:id="@+id/start_seek_bar_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/activity_vertical_margin"
+        android:gravity="center"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:text="@string/start_seek_bar_label"/>
+
+    <SeekBar
+        android:id="@+id/start_seek_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/activity_vertical_margin"
+        android:min="-50"
+        android:max="50"
+        android:progress="0"/>
+
+    <TextView
+        android:id="@+id/min_seek_bar_label"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="@dimen/activity_vertical_margin"
@@ -54,6 +76,7 @@
         android:progress="-50"/>
 
     <TextView
+        android:id="@+id/max_seek_bar_label"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="@dimen/activity_vertical_margin"
@@ -69,7 +92,14 @@
         android:layout_marginBottom="@dimen/activity_vertical_margin"
         android:min="-50"
         android:max="50"
-        android:progress="-50"/>
+        android:progress="50"/>
+
+    <Button
+        android:id="@+id/set_random_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="@string/set_random_btn"/>
 
     <Space
         android:layout_width="match_parent"

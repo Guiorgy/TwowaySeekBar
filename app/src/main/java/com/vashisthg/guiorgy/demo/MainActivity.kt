@@ -2,55 +2,112 @@ package com.vashisthg.guiorgy.demo
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
 import android.widget.SeekBar
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.vashisthg.guiorgy.TwowaySeekBar
+import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var twowayLabel: TextView
+    private lateinit var twowaySeekBar: TwowaySeekBar
+
+    private lateinit var startLabel: TextView
+    private lateinit var startSeekBar: SeekBar
+
+    private lateinit var minLabel: TextView
+    private lateinit var minSeekBar: SeekBar
+
+    private lateinit var maxLabel: TextView
+    private lateinit var maxSeekBar: ReversedSeekBar
+
+    private fun updateLabels() {
+        twowayLabel.text = resources.getString(R.string.twoway_seek_bar_label, twowaySeekBar.startValue, twowaySeekBar.progress)
+        startLabel.text = resources.getString(R.string.start_seek_bar_label, twowaySeekBar.startValue)
+        minLabel.text = resources.getString(R.string.min_seek_bar_label, twowaySeekBar.minValue)
+        maxLabel.text = resources.getString(R.string.max_seek_bar_label, twowaySeekBar.maxValue)
+
+        if (startSeekBar.progress != twowaySeekBar.startValue.toInt())
+            startSeekBar.progress = twowaySeekBar.startValue.toInt()
+
+        if (minSeekBar.progress != twowaySeekBar.minValue.toInt())
+            minSeekBar.progress = twowaySeekBar.minValue.toInt()
+
+        if (maxSeekBar.progress != twowaySeekBar.maxValue.toInt())
+            maxSeekBar.progress = twowaySeekBar.maxValue.toInt()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val twowaySeekBar = findViewById<TwowaySeekBar>(R.id.twoway_seek_bar)
-        twowaySeekBar.onProgressChange { _, value ->
-            Log.d(LOGTAG, "twowayseekbar value:$value")
+        twowayLabel = findViewById(R.id.twoway_seek_bar_label)
+        startLabel = findViewById(R.id.start_seek_bar_label)
+        minLabel = findViewById(R.id.min_seek_bar_label)
+        maxLabel = findViewById(R.id.max_seek_bar_label)
+
+        twowaySeekBar = findViewById(R.id.twoway_seek_bar)
+        twowaySeekBar.onProgressChange { _, progress, _ ->
+            Log.d(TAG, "twowayseekbar progress=$progress")
+            updateLabels()
         }
         twowaySeekBar.notifyWhileDragging = true
 
-        val minSeekBar = findViewById<SeekBar>(R.id.min_seek_bar)
-        minSeekBar.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
+        startSeekBar = findViewById(R.id.start_seek_bar)
+        startSeekBar.setOnSeekBarChangeListener(object: ProgressListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                Log.d(LOGTAG, "twowayseekbar min value:$progress")
-                twowaySeekBar.minValue = progress.toDouble()
-                twowaySeekBar.startValue = (twowaySeekBar.maxValue + twowaySeekBar.minValue) / 2.0
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {
-            }
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                if (!fromUser) return
+                twowaySeekBar.startValue = progress.toDouble()
+                updateLabels()
+                Log.d(TAG, "twowayseekbar start value=$progress (progress=${twowaySeekBar.progress})")
             }
         })
 
-        val maxSeekBar = findViewById<ReversedSeekBar>(R.id.max_seek_bar)
-        maxSeekBar.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
+        minSeekBar = findViewById(R.id.min_seek_bar)
+        minSeekBar.setOnSeekBarChangeListener(object: ProgressListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                twowaySeekBar.minValue = progress.toDouble()
+                updateLabels()
+                Log.d(TAG, "twowayseekbar min value=$progress (progress=${twowaySeekBar.progress})")
+            }
+        })
+
+        maxSeekBar = findViewById(R.id.max_seek_bar)
+        maxSeekBar.setOnSeekBarChangeListener(object: ProgressListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser) return
                 if (seekBar == null) return
                 @Suppress("NAME_SHADOWING") val progress = seekBar.max - progress + seekBar.min
-                Log.d(LOGTAG, "twowayseekbar max value:$progress")
                 twowaySeekBar.maxValue = progress.toDouble()
-                twowaySeekBar.startValue = (twowaySeekBar.maxValue + twowaySeekBar.minValue) / 2.0
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {
-            }
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                updateLabels()
+                Log.d(TAG, "twowayseekbar max value=$progress (progress=${twowaySeekBar.progress})")
             }
         })
+
+        val btn = findViewById<Button>(R.id.set_random_btn)
+        btn.setOnClickListener {
+            val progress = Random.nextDouble(twowaySeekBar.minValue, twowaySeekBar.maxValue)
+            twowaySeekBar.progress = progress
+            updateLabels()
+            Log.d(TAG, "twowayseekbar progress=$progress")
+        }
+
+        updateLabels()
+
     }
 
     companion object {
-        private const val LOGTAG = "MainActivityDemo"
+        private const val TAG = "MainActivityDemo"
+    }
+
+    private interface ProgressListener : SeekBar.OnSeekBarChangeListener {
+        override fun onStartTrackingTouch(seekBar: SeekBar?) {
+        }
+
+        override fun onStopTrackingTouch(seekBar: SeekBar?) {
+        }
     }
 }
