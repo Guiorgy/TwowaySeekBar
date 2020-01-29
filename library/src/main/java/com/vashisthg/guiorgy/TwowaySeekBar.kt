@@ -1,13 +1,18 @@
 package com.vashisthg.guiorgy
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.LayerDrawable
+import android.graphics.drawable.StateListDrawable
 import android.os.Build
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import androidx.annotation.RequiresApi
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -17,95 +22,332 @@ import kotlin.math.min
  * https://github.com/vashisthg/StartPointSeekBar
  * Modified by Guiorgy
  */
-class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0)
-    : View(context, attrs, defStyleAttr) {
-    private val thumbImage: Bitmap
-    private val thumbPressedImage: Bitmap
-    private val defaultRangeColor: Int
-    private val defaultBackgroundColor: Int
-    private val thumbHalfWidth: Float
-    private val thumbHalfHeight: Float
-    private val lineHeight: Float
-    private val padding: Float
-    private val scaledTouchSlop: Int
-    private var isDragging = false
-    private var isThumbPressed = false
-    private var normalizedThumbValue = 0.0
-    private var mDownMotionX = 0f
-    private var mActivePointerId = INVALID_POINTER_ID
-    private var listener: OnProgressChangeListener? = null
+@Suppress("MemberVisibilityCanBePrivate")
+open class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, defStyleRes: Int = 0) : View(context, attrs, defStyleAttr) {
+
+    // region protected properties
+    protected val noInvalidate = true
+    protected var hasThumbTint = false
+    protected var hasThumbTintMode = false
+    protected val thumbImage: Bitmap
+    protected val thumbPressedImage: Bitmap
+    protected val defaultRangeColor: Int
+    protected val defaultBackgroundColor: Int
+    protected val thumbHalfWidth: Float
+    protected val thumbHalfHeight: Float
+    protected val lineHeight: Float
+    protected val padding: Float
+    protected val scaledTouchSlop: Int
+    protected var isDragging = false
+    protected var isThumbPressed = false
+    protected var mDownMotionX = 0f
+    protected var mActivePointerId = INVALID_POINTER_ID
+    protected var listener: OnProgressChangeListener? = null
+    // endregion
+
+    // region public properties
     /**
-     * Whether to call the OnSeekBarChangedListener while dragging, or
-     * only at the end of it.
+     * Whether to call the OnProgressChangeListener while dragging, or
+     * only when user lets go of the thumb.
+     *
+     * @see TwowaySeekBar.OnProgressChangeListener
      */
     var notifyWhileDragging = false
 
-    var minValue: Double = 0.0
+    var minValue: Double = -100.0
     set(value) {
+        if (maxValue < value)
+            return
+
         field = value
-        invalidate()
+        if (startValue < value)
+            startValue = value
+        else
+            invalidate()
     }
 
     var startValue: Double = 0.0
     set(value) {
-        field = value
+        field =
+            when {
+                value < minValue -> minValue
+                maxValue < value -> maxValue
+                else -> value
+            }
         invalidate()
     }
 
-    var maxValue: Double = 0.0
+    var maxValue: Double = 100.0
     set(value) {
+        if (value < minValue)
+            return
+
         field = value
-        invalidate()
+        if (value < startValue)
+            startValue = value
+        else
+            invalidate()
     }
 
     /**
-     * Sets value of seekbar to the given value
+     * Progress in the range of minValue..maxValue
      */
     var progress: Double
-    get() = normalizedThumbValue
+    get() = recoverValue(normalizedProgress)
+    /**
+     * Sets the current progress to the specified value.
+     */
     set(value) {
-        var newThumbValue = normalizeValue(value)
-        if (newThumbValue > maxValue) newThumbValue = maxValue
-        if (newThumbValue < minValue) newThumbValue = minValue
-        normalizedThumbValue = newThumbValue
-        invalidate()
+        normalizedProgress = normalizeValue(value)
     }
 
     /**
-     * Callback listener interface to notify about changed range values.
+     * Progress in tge range of 0..1
+     */
+    var normalizedProgress = 0.0
+    /**
+     * Sets the current progress to the specified value.
+     */
+    set(value) {
+        field = value
+        if (field > 1) field = 1.0
+        if (field < 0) field = 0.0
+        invalidate()
+    }
+
+    var thumbOffset: Int = 0
+    /**
+     * Sets the thumb offset that allows the thumb to extend out of the range of
+     * the track.
      *
+     * @param value The offset amount in pixels.
+     */
+    set(value) {
+        field = value
+        invalidate()
+    }
+
+    var thumb: Drawable? = null
+    /**
+     * Sets the thumb that will be drawn at the end of the progress meter within the SeekBar.
+     *
+     * If the thumb is a valid drawable (i.e. not null), half its width will be
+     * used as the new thumb offset (@see #thumbOffset).
+     *
+     * @param value Drawable representing the thumb
+     */
+    set(value) {
+        // This way, calling setThumb again with the same bitmap will result in
+        // it recalculating thumbOffset (if for example if the bounds of the
+        // drawable changed)
+        val needUpdate =
+            if (field != null && field !== value) {
+                field!!.callback = null
+                true
+            } else false
+
+        if (value != null) {
+            value.callback = this
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&canResolveLayoutDirection())
+                value.layoutDirection = layoutDirection
+
+            // Assuming the thumb drawable is symmetric, set the thumb offset
+            // such that the thumb will hang halfway off either edge of the
+            // progress bar.
+            thumbOffset = value.intrinsicWidth / 2
+
+            // If we're updating get the new states
+            if (needUpdate &&
+                (value.intrinsicWidth != field!!.intrinsicWidth ||
+                        value.intrinsicHeight != field!!.intrinsicHeight))
+                requestLayout()
+        }
+
+        field = value
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+            applyThumbTint()
+        invalidate()
+
+        if (needUpdate) {
+            updateThumbAndTrackPos(width, height)
+            if (value != null && value.isStateful) {
+                // Note that if the states are different this won't work.
+                // For now, let's consider that an app bug.
+                value.state = drawableState
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    var thumbTintList: ColorStateList? = null
+    /**
+     * Applies a tint to the thumb drawable. Does not modify the current tint
+     * mode, which is {@link PorterDuff.Mode#SRC_IN} by default.
+     * <p>
+     * Subsequent calls to {@link #setThumb(Drawable)} will automatically
+     * mutate the drawable and apply the specified tint and tint mode using
+     * {@link Drawable#setTintList(ColorStateList)}.
+     *
+     * @param value the tint to apply, may be {@code null} to clear tint
+     *
+     * @attr ref android.R.styleable#SeekBar_thumbTint
+     * @see #getThumbTintList()
+     * @see Drawable#setTintList(ColorStateList)
+     */
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    set(value) {
+        field = value
+        hasThumbTint = true
+        applyThumbTint()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    var thumbTintMode: PorterDuff.Mode? = PorterDuff.Mode.SRC_IN
+    /**
+     * Specifies the blending mode used to apply the tint specified by
+     * {@link #setThumbTintList(ColorStateList)}} to the thumb drawable. The
+     * default mode is {@link PorterDuff.Mode#SRC_IN}.
+     *
+     * @param value the blending mode used to apply the tint, may be
+     *                 {@code null} to clear tint
+     *
+     * @attr ref android.R.styleable#SeekBar_thumbTintMode
+     * @see #getThumbTintMode()
+     * @see Drawable#setTintMode(PorterDuff.Mode)
+     */
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    set(value) {
+        field = value
+        hasThumbTintMode = true
+        applyThumbTint()
+    }
+    // endregion
+
+    // region listeners
+    /**
+     * Callback listener interface to notify about changed range values.
      */
     @FunctionalInterface
     interface OnProgressChangeListener {
-        fun onProgressChanged(
-            seekBar: TwowaySeekBar?,
-            progress: Double
-        )
+        /**
+         * Notification that the progress level has changed.
+         *
+         * @param seekBar The SeekBar whose progress has changed
+         * @param progress The current progress level. This will be in the range of minValue..maxValue
+         * @param normalizedProgress The current progress level. This will be in the range of 0..1
+         */
+        fun onProgressChanged(seekBar: TwowaySeekBar?, progress: Double, normalizedProgress: Double)
     }
 
     /**
-     * Registers given listener callback to notify about changed selected
-     * values.
+     * Sets a listener to receive notifications of changes to the SeekBar's progress level.
      *
-     * @param listener The listener to notify about changed selected values.
+     * @param listener The seek bar notification listener
+     *
+     * @see TwowaySeekBar.OnProgressChangeListener
      */
     fun setOnProgressChangeListener(listener: OnProgressChangeListener?) {
         this.listener = listener
     }
 
     /**
-     * Registers given listener callback to notify about changed selected
-     * values.
+     * Sets a listener to receive notifications of changes to the SeekBar's progress level.
      *
-     * @param listener The listener to notify about changed selected values.
+     * @param listener The seek bar notification listener
+     *
+     * @see TwowaySeekBar.OnProgressChangeListener
      */
-    inline fun onProgressChange(crossinline listener: (seekBar: TwowaySeekBar?, progress: Double) -> Unit) {
+    inline fun onProgressChange(crossinline listener: (seekBar: TwowaySeekBar?, progress: Double, normalizedProgress: Double) -> Unit) {
         setOnProgressChangeListener(object : OnProgressChangeListener {
-            override fun onProgressChanged(seekBar: TwowaySeekBar?, progress: Double) {
-                listener(seekBar, progress)
+            override fun onProgressChanged(seekBar: TwowaySeekBar?, progress: Double, normalizedProgress: Double) {
+                listener(seekBar, progress, normalizedProgress)
             }
         })
     }
+
+    protected var oldNormalizedProgress: Double = 0.0
+    protected fun callOnProgressChange() {
+        if (oldNormalizedProgress == normalizedProgress) return
+        listener?.onProgressChanged(this, progress, normalizedProgress)
+        oldNormalizedProgress = normalizedProgress
+    }
+    // endregion
+
+    // region protected methods
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    protected fun applyThumbTint() {
+        if (thumb != null && (hasThumbTint || hasThumbTintMode)) {
+            thumb = thumb!!.mutate()
+
+            if (hasThumbTint)
+                thumb!!.setTintList(thumbTintList)
+
+            if (hasThumbTintMode)
+                thumb!!.setTintMode(thumbTintMode)
+
+            // The drawable (or one of its children) may not have been
+            // stateful before applying the tint, so let's try again.
+            if (thumb!!.isStateful) {
+                thumb!!.state = drawableState
+            }
+        }
+    }
+
+    protected fun updateThumbAndTrackPos(width: Int, height: Int) {
+        /*val paddedHeight: Int = height - mPaddingTop - mPaddingBottom
+        val track: Drawable? = getCurrentDrawable()
+        val thumb: Drawable? = thumb
+
+        // The max height does not incorporate padding, whereas the height
+        // parameter does.
+        val trackHeight = min(maxHeight, paddedHeight)
+        val thumbHeight = thumb?.intrinsicHeight ?: 0
+
+        // Apply offset to whichever item is taller.
+        val trackOffset: Int
+        val thumbOffset: Int
+        if (thumbHeight > trackHeight) {
+            val offsetHeight = (paddedHeight - thumbHeight) / 2
+            trackOffset = offsetHeight + (thumbHeight - trackHeight) / 2
+            thumbOffset = offsetHeight
+        } else {
+            val offsetHeight = (paddedHeight - trackHeight) / 2
+            trackOffset = offsetHeight
+            thumbOffset = offsetHeight + (trackHeight - thumbHeight) / 2
+        }
+
+        if (track != null) {
+            val trackWidth: Int = width - mPaddingRight - mPaddingLeft
+            track.setBounds(0, trackOffset, trackWidth, trackOffset + trackHeight)
+        }
+
+        if (thumb != null) {
+            setThumbPos(width, thumb, normalizedProgress, thumbOffset)
+        }*/
+    }
+
+    /**
+     * Converts a normalized value to a Number object in the value space between
+     * absolute minimum and maximum.
+     *
+     * @param normalized
+     * @return
+     */
+    protected fun recoverValue(normalized: Double): Double {
+        return minValue + normalized * (maxValue - minValue)
+    }
+
+    /**
+     * Converts the given Number value to a normalized double.
+     *
+     * @param value The Number value to normalize.
+     * @return The normalized double.
+     */
+    protected fun normalizeValue(value: Double): Double {
+        val result = (value - minValue) / (maxValue - minValue)
+        return if (result.isFinite()) result else 0.0
+    }
+    // endregion
 
     @Synchronized
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -136,7 +378,7 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
                     return true
                 isPressed = true
                 invalidate()
-                onStartTrackingTouch()
+                isDragging = true
                 trackTouchEvent(event)
                 attemptClaimDrag()
             }
@@ -149,37 +391,29 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
                     if (Math.abs(x - mDownMotionX) > scaledTouchSlop) {
                         isPressed = true
                         invalidate()
-                        onStartTrackingTouch()
+                        isDragging = true
                         trackTouchEvent(event)
                         attemptClaimDrag()
                     }
                 }
-                if (notifyWhileDragging && listener != null) {
-                    listener!!.onProgressChanged(
-                        this,
-                        recoverValue(normalizedThumbValue)
-                    )
-                }
+                if (notifyWhileDragging)
+                    callOnProgressChange()
             }
             MotionEvent.ACTION_UP -> {
                 if (isDragging) {
                     trackTouchEvent(event)
-                    onStopTrackingTouch()
+                    isDragging = false
                     isPressed = false
-                } else { // Touch up when we never crossed the touch slop threshold
-// should be interpreted as a tap-seek to that location.
-                    onStartTrackingTouch()
+                } else {
+                    // Touch up when we never crossed the touch slop threshold
+                    // should be interpreted as a tap-seek to that location.
+                    isDragging = true
                     trackTouchEvent(event)
-                    onStopTrackingTouch()
+                    isDragging = false
                 }
                 isThumbPressed = false
                 invalidate()
-                if (listener != null) {
-                    listener!!.onProgressChanged(
-                        this,
-                        recoverValue(normalizedThumbValue)
-                    )
-                }
+                callOnProgressChange()
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 val index = event.pointerCount - 1
@@ -194,7 +428,7 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
             }
             MotionEvent.ACTION_CANCEL -> {
                 if (isDragging) {
-                    onStopTrackingTouch()
+                    isDragging = false
                     isPressed = false
                 }
                 invalidate() // see above explanation
@@ -203,7 +437,7 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
         return true
     }
 
-    private fun onSecondaryPointerUp(ev: MotionEvent) {
+    protected fun onSecondaryPointerUp(ev: MotionEvent) {
         val pointerIndex =
             ev.action and ACTION_POINTER_INDEX_MASK shr ACTION_POINTER_INDEX_SHIFT
         val pointerId = ev.getPointerId(pointerIndex)
@@ -220,12 +454,12 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
      * Tries to claim the user's drag motion, and requests disallowing any
      * ancestors from stealing events in the drag.
      */
-    private fun attemptClaimDrag() {
+    protected fun attemptClaimDrag() {
         if (parent != null)
             parent.requestDisallowInterceptTouchEvent(true)
     }
 
-    private fun trackTouchEvent(event: MotionEvent) {
+    protected fun trackTouchEvent(event: MotionEvent) {
         val pointerIndex = event.findPointerIndex(mActivePointerId)
         val x = event.getX(pointerIndex)
         setNormalizedValue(screenToNormalized(x))
@@ -237,7 +471,7 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
      * @param screenCoordinate The x-coordinate in screen space to convert.
      * @return The normalized value.
      */
-    private fun screenToNormalized(screenCoordinate: Float): Double {
+    protected fun screenToNormalized(screenCoordinate: Float): Double {
         val width = width
         return if (width <= 2 * padding) { // prevent division by zero, simply return 0.
             0.0
@@ -249,51 +483,14 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
     }
 
     /**
-     * Converts a normalized value to a Number object in the value space between
-     * absolute minimum and maximum.
-     *
-     * @param normalized
-     * @return
-     */
-    private fun recoverValue(normalized: Double): Double {
-        return minValue + normalized * (maxValue - minValue)
-    }
-
-    /**
-     * Converts the given Number value to a normalized double.
-     *
-     * @param value The Number value to normalize.
-     * @return The normalized double.
-     */
-    private fun normalizeValue(value: Double): Double {
-        val result = (value - minValue) / (maxValue - minValue)
-        return if (result.isFinite()) result else 0.0
-    }
-
-    /**
      * Sets normalized max value to value so that 0 <= normalized min value <=
      * value <= 1. The View will get invalidated when calling this method.
      *
      * @param value The new normalized max value to set.
      */
-    private fun setNormalizedValue(value: Double) {
-        normalizedThumbValue = max(0.0, value)
+    protected fun setNormalizedValue(value: Double) {
+        normalizedProgress = max(0.0, value)
         invalidate()
-    }
-
-    /**
-     * This is called when the user has started touching this widget.
-     */
-    fun onStartTrackingTouch() {
-        isDragging = true
-    }
-
-    /**
-     * This is called when the user either releases his touch or the touch is
-     * canceled.
-     */
-    fun onStopTrackingTouch() {
-        isDragging = false
     }
 
     /**
@@ -302,8 +499,8 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
      * @param touchX The x-coordinate of a touch event in screen space.
      * @return The pressed thumb or null if none has been touched.
      */
-    private fun evalPressedThumb(touchX: Float): Boolean {
-        return isInThumbRange(touchX, normalizedThumbValue)
+    protected fun evalPressedThumb(touchX: Float): Boolean {
+        return isInThumbRange(touchX, normalizedProgress)
     }
 
     /**
@@ -314,7 +511,7 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
      * @param normalizedThumbValue The normalized x-coordinate of the thumb to check.
      * @return true if x-coordinate is in thumb range, false otherwise.
      */
-    private fun isInThumbRange(
+    protected fun isInThumbRange(
         touchX: Float,
         normalizedThumbValue: Double
     ): Boolean {
@@ -327,11 +524,11 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
      * @param normalizedCoordinate The normalized value to convert.
      * @return The converted value in screen space.
      */
-    private fun normalizedToScreen(normalizedCoordinate: Double): Float {
+    protected fun normalizedToScreen(normalizedCoordinate: Double): Float {
         return (padding + normalizedCoordinate * (width - 2 * padding)).toFloat()
     }
 
-    private val rect = RectF()
+    protected val rect = RectF()
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val width = width
@@ -345,19 +542,20 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
         paint.color = defaultBackgroundColor
         canvas.drawRect(rect, paint)
         // draw seek bar active range line
-        if (normalizedToScreen(normalizeValue(startValue)) < normalizedToScreen(normalizedThumbValue)) {
-            rect.left = normalizedToScreen(normalizeValue(startValue))
-            rect.right = normalizedToScreen(normalizedThumbValue)
-        } else {
-            rect.right = normalizedToScreen(normalizeValue(startValue))
-            rect.left = normalizedToScreen(normalizedThumbValue)
+        if (startValue != progress) {
+            val startValue = normalizedToScreen(normalizeValue(startValue))
+            val progress = normalizedToScreen(normalizedProgress)
+            if (startValue < progress) {
+                rect.left = startValue
+                rect.right = progress
+            } else {
+                rect.right = startValue
+                rect.left = progress
+            }
+            paint.color = defaultRangeColor
+            canvas.drawRect(rect, paint)
         }
-        paint.color = defaultRangeColor
-        canvas.drawRect(rect, paint)
-        drawThumb(
-            normalizedToScreen(normalizedThumbValue),
-            isThumbPressed, canvas
-        )
+        drawThumb(normalizedToScreen(normalizedProgress), isThumbPressed, canvas)
     }
 
     /**
@@ -367,7 +565,7 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
      * @param pressed           Is the thumb currently in "pressed" state?
      * @param canvas            The canvas to draw upon.
      */
-    private fun drawThumb(screenCoordinate: Float, pressed: Boolean, canvas: Canvas) {
+    protected fun drawThumb(screenCoordinate: Float, pressed: Boolean, canvas: Canvas) {
         canvas.drawBitmap(
             if (pressed) thumbPressedImage else thumbImage
             , screenCoordinate - thumbHalfWidth
@@ -375,64 +573,91 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
     }
 
     companion object {
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        private val DEFAULT_RANGE_COLOR = Color.argb(0xFF, 0x33, 0xB5, 0xE5)
-        private const val DEFAULT_BACKGROUND_COLOR = Color.GRAY
-        private const val DEFAULT_MIN_VALUE = -100f
-        private const val DEFAULT_MAX_VALUE = +100f
+        protected val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        protected val DEFAULT_RANGE_COLOR = Color.argb(0xFF, 0x33, 0xB5, 0xE5)
+        protected const val DEFAULT_BACKGROUND_COLOR = Color.GRAY
+        protected const val DEFAULT_MIN_VALUE = -100f
+        protected const val DEFAULT_MAX_VALUE = +100f
         /**
          * An invalid pointer id.
          */
         const val INVALID_POINTER_ID = 255
         // Localized constants from MotionEvent for compatibility
-// with API < 8 "Froyo".
+        // with API < 8 "Froyo".
         const val ACTION_POINTER_UP = 0x6
         const val ACTION_POINTER_INDEX_MASK = 0x0000ff00
         const val ACTION_POINTER_INDEX_SHIFT = 8
+
+        /**
+         * Returns  `true` if the target drawable needs to be tileified.
+         *
+         * @param   dr the drawable to check
+         * @return  `true` if the target drawable needs to be tileified,
+         *          `false` otherwise
+         */
+        protected fun needsTileify(dr: Drawable?): Boolean {
+            if (dr is LayerDrawable) {
+                val n = dr.numberOfLayers
+                for (i in 0 until n)
+                    if (needsTileify(dr.getDrawable(i)))
+                        return true
+                return false
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && dr is StateListDrawable) {
+                val n = dr.stateCount
+                for (i in 0 until n)
+                    if (needsTileify(dr.getStateDrawable(i)))
+                        return true
+                return false
+            }
+            // If there's a bitmap that's not wrapped with a ClipDrawable or
+            // ScaleDrawable, we'll need to wrap it and apply tiling.
+            return dr is BitmapDrawable
+        }
     }
 
     init {
         // Attribute initialization
-        val a = context.obtainStyledAttributes(
-            attrs, R.styleable.TwowaySeekBar,
-            defStyleAttr, 0
-        )
+        val attr = context.obtainStyledAttributes(attrs, R.styleable.TwowaySeekBar, defStyleAttr, defStyleRes)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+            saveAttributeDataForStyleable(context, R.styleable.TwowaySeekBar, attrs, attr, defStyleAttr, defStyleRes)
+
         try {
-            var thumbImageDrawable = a.getDrawable(R.styleable.TwowaySeekBar_thumbDrawable)
-            if (thumbImageDrawable == null) {
+            var thumbDrawable = attr.getDrawable(R.styleable.TwowaySeekBar_thumbDrawable)
+            if (thumbDrawable == null) {
                 @Suppress("DEPRECATION")
-                thumbImageDrawable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                thumbDrawable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
                     context.getDrawable(R.drawable.seek_thumb_normal)
                 else resources.getDrawable(R.drawable.seek_thumb_normal)
             }
-            thumbImage = (thumbImageDrawable as BitmapDrawable?)!!.bitmap
-            var thumbImagePressedDrawable =
-                a.getDrawable(R.styleable.TwowaySeekBar_thumbPressedDrawable)
-            if (thumbImagePressedDrawable == null) {
+            thumbImage = (thumbDrawable as BitmapDrawable?)!!.bitmap
+            var thumbPressedDrawable =
+                attr.getDrawable(R.styleable.TwowaySeekBar_thumbPressedDrawable)
+            if (thumbPressedDrawable == null) {
                 @Suppress("DEPRECATION")
-                thumbImagePressedDrawable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                thumbPressedDrawable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
                     context.getDrawable(R.drawable.seek_thumb_pressed)
                 else resources.getDrawable(R.drawable.seek_thumb_pressed)
             }
-            thumbPressedImage = (thumbImagePressedDrawable as BitmapDrawable?)!!.bitmap
-            minValue = a.getFloat(
+            thumbPressedImage = (thumbPressedDrawable as BitmapDrawable?)!!.bitmap
+            minValue = attr.getFloat(
                 R.styleable.TwowaySeekBar_minValue,
                 DEFAULT_MIN_VALUE
             ).toDouble()
-            maxValue = a.getFloat(
+            maxValue = attr.getFloat(
                 R.styleable.TwowaySeekBar_maxValue,
                 DEFAULT_MAX_VALUE
             ).toDouble()
-            defaultBackgroundColor = a.getColor(
+            defaultBackgroundColor = attr.getColor(
                 R.styleable.TwowaySeekBar_defaultBackgroundColor,
                 DEFAULT_BACKGROUND_COLOR
             )
-            defaultRangeColor = a.getColor(
+            defaultRangeColor = attr.getColor(
                 R.styleable.TwowaySeekBar_defaultBackgroundRangeColor,
                 DEFAULT_RANGE_COLOR
             )
         } finally {
-            a.recycle()
+            attr.recycle()
         }
         val thumbWidth = thumbImage.width.toFloat()
         thumbHalfWidth = 0.5f * thumbWidth
@@ -441,8 +666,18 @@ class TwowaySeekBar @JvmOverloads constructor(context: Context, attrs: Attribute
         padding = thumbHalfWidth
         isFocusable = true
         isFocusableInTouchMode = true
-        scaledTouchSlop = ViewConfiguration.get(getContext())
+        scaledTouchSlop = ViewConfiguration.get(context)
             .scaledTouchSlop
+    }
+
+    override fun postInvalidate() {
+        //if (!noInvalidate)
+            super.postInvalidate()
+    }
+
+    override fun invalidate() {
+        //if (!noInvalidate)
+            super.invalidate()
     }
 
     override fun getAccessibilityClassName(): CharSequence? = TwowaySeekBar::class.qualifiedName
