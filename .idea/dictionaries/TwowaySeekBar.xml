@@ -2,8 +2,11 @@
   <dictionary name="TwowaySeekBar">
     <words>
       <w>rects</w>
+      <w>seekbar</w>
       <w>tileified</w>
+      <w>tileify</w>
       <w>twoway</w>
+      <w>twowayseekbar</w>
     </words>
   </dictionary>
 </component>

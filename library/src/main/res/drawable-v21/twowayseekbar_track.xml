@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:gravity="center_vertical|fill_horizontal">
+        <shape android:shape="rectangle"
+               android:tint="?android:attr/colorControlNormal">
+            <corners android:radius="?attr/trackCornerRadius" />
+            <size android:height="@dimen/twowayseekbar_track_background_height" />
+            <solid android:color="@color/white_disabled" />
+        </shape>
+    </item>
+</layer-list>

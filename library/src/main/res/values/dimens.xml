@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="twowayseekbar_track_background_height">2dp</dimen>
+    <dimen name="twowayseekbar_track_height">2dp</dimen>
+    <dimen name="twowayseekbar_track_corner_radius">0dp</dimen>
+    <dimen name="twowayseekbar_tick_mark_height">4dp</dimen>
+
+    <item format="float" name="disabled_alpha_dark" type="dimen">0.30</item>
+    <item format="float" name="disabled_alpha_light" type="dimen">0.26</item>
+    <item format="float" name="highlight_alpha_colored" type="dimen">0.26</item>
+    <item format="float" name="highlight_alpha_dark" type="dimen">0.20</item>
+    <item format="float" name="highlight_alpha_light" type="dimen">0.12</item>
+</resources>

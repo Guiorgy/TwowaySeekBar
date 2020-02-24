@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <shape
+            android:shape="ring"
+            android:innerRadius="2dp"
+            android:thickness="2dp"
+            android:useLevel="false"
+            android:color="?attr/colorAccent">
+            <solid
+                android:color="@android:color/white" />
+            <size
+                android:width="18dp"
+                android:height="18dp" />
+        </shape>
+    </item>
+    <item
+        android:id="@+id/pressed"
+        android:state_pressed="true"
+        android:drawable="@drawable/twowayseekbar_thumb_pressed_to_unpressed" />
+    <item
+        android:id="@+id/unpressed"
+        android:drawable="@drawable/twowayseekbar_thumb_unpressed_to_pressed" />
+</selector>

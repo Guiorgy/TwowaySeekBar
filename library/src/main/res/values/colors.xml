@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="material_primary">#FF6200EE</color>
+    <color name="material_primary_variant">#FF3700B3</color>
+    <color name="material_secondary">#FF03DAC6</color>
+    <color name="material_secondary_variant">#FF018786</color>
+
+    <color name="black_faded">#AA000000</color>
+
+</resources>

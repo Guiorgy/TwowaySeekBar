@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:drawable="@drawable/twowayseekbar_thumb_pressed_to_unpressed"
+    tools:targetApi="lollipop">
+    <target
+        android:name="thumb"
+        android:animation="@anim/twowayseekbar_thumb_pressed_to_unpressed_animation" />
+</animated-vector>

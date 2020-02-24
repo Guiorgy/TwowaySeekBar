@@ -1,13 +1,123 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <declare-styleable name="TwowaySeekBarStyle">
+        <attr name="twowaySeekBarStyle" format="reference"/>
+    </declare-styleable>
+
     <declare-styleable name="TwowaySeekBar">
-        <attr name="minValue" format="float"/>
-        <attr name="maxValue" format="float"/>
-        <attr name="thumbDrawable" format="reference"/>
-        <attr name="thumbPressedDrawable" format="reference"/>
-        <attr name="defaultBackgroundColor" format="color"/>
-        <attr name="defaultBackgroundRangeColor" format="color"/>
+        <!-- Draws the track on a TwowaySeekBar. -->
+        <attr name="track" format="reference"/>
+
+        <!-- Tint to apply to the track. -->
+        <attr name="trackTint" format="color"/>
+
+        <!-- Blending mode used to apply the track tint. -->
+        <attr name="trackTintMode"/>
+
+        <!-- Draws the progress on top of the track on a TwowaySeekBar. -->
+        <attr name="progress" format="reference"/>
+
+        <!-- Tint to apply to the track progress drawable. -->
+        <attr name="progressTint" format="color"/>
+
+        <!-- Blending mode used to apply the track progress tint. -->
+        <attr name="progressTintMode">
+            <!-- The tint is drawn on top of the drawable.
+                 [Sa + (1 - Sa)*Da, Rc = Sc + (1 - Sa)*Dc] -->
+            <enum name="src_over" value="3" />
+            <!-- The tint is masked by the alpha channel of the drawable. The drawable’s
+                 color channels are thrown out. [Sa * Da, Sc * Da] -->
+            <enum name="src_in" value="5" />
+            <!-- The tint is drawn above the drawable, but with the drawable’s alpha
+                 channel masking the result. [Da, Sc * Da + (1 - Sa) * Dc] -->
+            <enum name="src_atop" value="9" />
+            <!-- Multiplies the color and alpha channels of the drawable with those of
+                 the tint. [Sa * Da, Sc * Dc] -->
+            <enum name="multiply" value="14" />
+            <!-- [Sa + Da - Sa * Da, Sc + Dc - Sc * Dc] -->
+            <enum name="screen" value="15" />
+            <!-- Combines the tint and drawable color and alpha channels, clamping the
+                 result to valid color values. Saturate(S + D) -->
+            <enum name="add" value="16" />
+        </attr>
+
+        <attr name="trackCornerRadius" format="dimension"/>
+
+        <!-- Drawable displayed at each progress position on a TwowaySeekBar. todo change comment -->
+        <attr name="tickMark" format="reference"/>
+
+        <!-- Tint to apply to the tick mark drawable. -->
+        <attr name="tickMarkTint" format="color"/>
+
+        <!-- Blending mode used to apply the tick mark tint. -->
+        <attr name="tickMarkTintMode"/>
+
+        <!-- Whether to draw tick marks. -->
+        <attr name="enableTickMarks" format="boolean"/>
+
+        <!-- Draws the thumb on a TwowaySeekBar. -->
+        <attr name="android:thumb" format="reference"/>
+        <attr name="thumb" format="reference"/>
+
+        <!-- Tint to apply to the thumb drawable. -->
+        <attr name="thumbTint" format="color"/>
+
+        <!-- Blending mode used to apply the thumb tint. -->
+        <attr name="thumbTintMode"/>
+
+        <!-- Defines the minimum value. -->
+        <attr name="min" format="float"/>
+
+        <!-- Defines the starting value. -->
+        <attr name="zero" format="float"/>
+
+        <!-- Defines the maximum value. -->
+        <attr name="max" format="float"/>
+
+        <!-- Defines the default value, between min and max. -->
+        <attr name="value" format="float"/>
+
+        <!-- Defines the default value, between 0 and 1. Will override value attribute. -->
+        <attr name="normalizedValue" format="float"/>
+
+        <!-- Whether to split the track and leave a gap for the thumb drawable. -->
+        <attr name="splitTrack" format="boolean"/>
+
+        <!-- An offset for the thumb that allows it to extend out of the range of the track. -->
+        <attr name="android:thumbOffset" format="dimension"/>
+        <attr name="thumbOffset" format="dimension"/>
+
+        <!-- Defines the amount to increment/decrement value on key presses (right or left). -->
+        <attr name="keyValueIncrement" format="float"/>
+
+        <!-- Defines if the associated drawables need to be mirrored when in RTL mode. Default is false. -->
+        <attr name="android:mirrorForRtl" format="boolean"/>
+        <attr name="mirrorForRtl" format="boolean"/>
+
+        <!-- Defines the orientation of the seekbar to be drawn. -->
+        <attr name="android:orientation"/>
+        <attr name="orientation">
+            <!-- Defines a horizontal seekbar. -->
+            <enum name="horizontal" value="0" />
+            <!-- Defines a vertical seekbar. -->
+            <enum name="vertical" value="1" />
+        </attr>
+
+        <attr name="android:minWidth" format="dimension"/>
+        <attr name="minWidth" format="dimension"/>
+        <attr name="android:maxWidth" format="dimension"/>
+        <attr name="maxWidth" format="dimension"/>
+        <attr name="android:minHeight" format="dimension"/>
+        <attr name="minHeight" format="dimension"/>
+        <attr name="android:maxHeight" format="dimension"/>
+        <attr name="maxHeight" format="dimension"/>
+
+        <!-- Whether to force the track's alpha to ?android:attr/disabledAlpha
+             when disabled. This is required for Holo and Gingerbread, but
+             should always be false for Material and  beyond.
+             @hide Developers shouldn't need to change this. -->
+        <attr name="useDisabledAlpha" format="boolean"/>
     </declare-styleable>
 
 </resources>
