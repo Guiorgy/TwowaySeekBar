@@ -3,10 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    tools:ignore="HardcodedText">
 
     <TextView
-        android:id="@+id/start_seek_bar_label"
+        android:id="@+id/zerot_seek_bar_label"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="@dimen/activity_vertical_margin"
@@ -16,7 +17,7 @@
         tools:text="@string/start_seek_bar_label"/>
 
     <SeekBar
-        android:id="@+id/start_seek_bar"
+        android:id="@+id/zero_seek_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="@dimen/activity_vertical_margin"
@@ -73,15 +74,15 @@
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:layout_weight="1"
-            android:layout_marginRight="8dp">
+            android:layout_marginEnd="8dp">
 
             <androidx.appcompat.widget.AppCompatCheckBox
-                android:id="@+id/rtl_checkbox"
+                android:id="@+id/reverse_checkbox"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical"
                 android:layout_marginBottom="@dimen/activity_vertical_margin"
-                android:text="Right to Left"/>
+                android:text="Reverse"/>
 
         </LinearLayout>
 
@@ -90,7 +91,7 @@
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:layout_weight="1"
-            android:layout_marginLeft="8dp">
+            android:layout_marginStart="8dp">
 
             <androidx.appcompat.widget.AppCompatCheckBox
                 android:id="@+id/drag_checkbox"

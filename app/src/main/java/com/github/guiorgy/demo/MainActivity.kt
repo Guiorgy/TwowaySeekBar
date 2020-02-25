@@ -3,120 +3,88 @@ package com.github.guiorgy.demo
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.LinearLayout
 import android.widget.SeekBar
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.AppCompatCheckBox
-import com.github.guiorgy.TwowaySeekBar
+import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.controls.*
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var twowayLabel: TextView
-    private lateinit var twowaySeekBar: TwowaySeekBar
-
-    private lateinit var startLabel: TextView
-    private lateinit var startSeekBar: SeekBar
-
-    private lateinit var minLabel: TextView
-    private lateinit var minSeekBar: SeekBar
-
-    private lateinit var maxLabel: TextView
-    private lateinit var maxSeekBar: ReverseSeekBar
-
-    private lateinit var rtlCheckBox: AppCompatCheckBox
-    private lateinit var dragCheckBox: AppCompatCheckBox
-
     private fun updateLabels() {
-        twowayLabel.text =
-            resources.getString(R.string.twoway_seek_bar_label, twowaySeekBar.value)
-        startLabel.text =
-            resources.getString(R.string.start_seek_bar_label, twowaySeekBar.zero)
-        minLabel.text =
-            resources.getString(R.string.min_seek_bar_label, twowaySeekBar.min)
-        maxLabel.text =
-            resources.getString(R.string.max_seek_bar_label, twowaySeekBar.max)
+        twoway_seek_bar_label.text =
+            resources.getString(R.string.twoway_seek_bar_label, twoway_seek_bar.value)
+        zerot_seek_bar_label.text =
+            resources.getString(R.string.start_seek_bar_label, twoway_seek_bar.zero)
+        min_seek_bar_label.text =
+            resources.getString(R.string.min_seek_bar_label, twoway_seek_bar.min)
+        max_seek_bar_label.text =
+            resources.getString(R.string.max_seek_bar_label, twoway_seek_bar.max)
 
-        if (startSeekBar.progress != twowaySeekBar.zero.toInt())
-            startSeekBar.progress = twowaySeekBar.zero.toInt()
+        if (zero_seek_bar.progress != twoway_seek_bar.zero.toInt())
+            zero_seek_bar.progress = twoway_seek_bar.zero.toInt()
 
-        if (minSeekBar.progress != twowaySeekBar.min.toInt())
-            minSeekBar.progress = twowaySeekBar.min.toInt()
+        if (min_seek_bar.progress != twoway_seek_bar.min.toInt())
+            min_seek_bar.progress = twoway_seek_bar.min.toInt()
 
-        if (maxSeekBar.progress != twowaySeekBar.max.toInt())
-            maxSeekBar.progress = twowaySeekBar.max.toInt()
+        if (max_seek_bar.progress != twoway_seek_bar.max.toInt())
+            max_seek_bar.progress = twoway_seek_bar.max.toInt()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val l = LinearLayout(this)
-        l.orientation = LinearLayout.VERTICAL
-
-        rtlCheckBox = findViewById(R.id.rtl_checkbox)
-        dragCheckBox = findViewById(R.id.drag_checkbox)
-
-        twowayLabel = findViewById(R.id.twoway_seek_bar_label)
-        startLabel = findViewById(R.id.start_seek_bar_label)
-        minLabel = findViewById(R.id.min_seek_bar_label)
-        maxLabel = findViewById(R.id.max_seek_bar_label)
-
-        twowaySeekBar = findViewById(R.id.twoway_seek_bar)
-        twowaySeekBar.onValueChange { _, progress, _ ->
+        twoway_seek_bar.onValueChange { _, progress, _ ->
             Log.d(TAG, "twowayseekbar progress=$progress")
             updateLabels()
         }
-        twowaySeekBar.notifyWhileDragging = dragCheckBox.isChecked
+        twoway_seek_bar.notifyWhileDragging = drag_checkbox.isChecked
 
-        startSeekBar = findViewById(R.id.start_seek_bar)
-        startSeekBar.setOnSeekBarChangeListener(object : ProgressListener {
+        zero_seek_bar.setOnSeekBarChangeListener(object : ProgressListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (!fromUser) return
-                twowaySeekBar.zero = progress.toDouble()
+                twoway_seek_bar.zero = progress.toDouble()
                 updateLabels()
                 Log.d(
                     TAG,
-                    "twowayseekbar start value=$progress (progress=${twowaySeekBar.value})"
+                    "twowayseekbar start value=$progress (progress=${twoway_seek_bar.value})"
                 )
             }
         })
 
-        minSeekBar = findViewById(R.id.min_seek_bar)
-        minSeekBar.setOnSeekBarChangeListener(object : ProgressListener {
+        min_seek_bar.setOnSeekBarChangeListener(object : ProgressListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (!fromUser) return
-                twowaySeekBar.min = progress.toDouble()
+                twoway_seek_bar.min = progress.toDouble()
                 updateLabels()
-                Log.d(TAG, "twowayseekbar min value=$progress (progress=${twowaySeekBar.value})")
+                Log.d(TAG, "twowayseekbar min value=$progress (progress=${twoway_seek_bar.value})")
             }
         })
 
-        maxSeekBar = findViewById(R.id.max_seek_bar)
-        maxSeekBar.setOnSeekBarChangeListener(object : ProgressListener {
+        max_seek_bar.setOnSeekBarChangeListener(object : ProgressListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (!fromUser) return
-                twowaySeekBar.max = progress.toDouble()
+                twoway_seek_bar.max = progress.toDouble()
                 updateLabels()
-                Log.d(TAG, "twowayseekbar max value=$progress (progress=${twowaySeekBar.value})")
+                Log.d(TAG, "twowayseekbar max value=$progress (progress=${twoway_seek_bar.value})")
             }
         })
 
         updateLabels()
 
-        rtlCheckBox.setOnCheckedChangeListener { _, checked: Boolean ->
-            twowaySeekBar.layoutDirection =
+        reverse_checkbox.setOnCheckedChangeListener { _, checked: Boolean ->
+            twoway_seek_bar.layoutDirection =
                 if (checked)
                     View.LAYOUT_DIRECTION_RTL
                 else
                     View.LAYOUT_DIRECTION_LTR
         }
 
-        dragCheckBox.setOnCheckedChangeListener { _, checked: Boolean ->
-            twowaySeekBar.notifyWhileDragging = checked
+        drag_checkbox.setOnCheckedChangeListener { _, checked: Boolean ->
+            twoway_seek_bar.notifyWhileDragging = checked
         }
 
-        findViewById<TextView>(R.id.version_label).text = BuildConfig.VERSION_NAME
+        version_label.text = BuildConfig.VERSION_NAME
     }
 
     companion object {
