@@ -20,7 +20,7 @@
     android:height="18dp"
     android:viewportWidth="18"
     android:viewportHeight="18"
-    android:color="#FF018786">
+    android:color="#008577">
     <group
         android:name="thumb"
         android:translateX="9"
@@ -29,7 +29,7 @@
         android:scaleY="1.5">
         <path
             android:name="thumb_path"
-            android:fillColor="#FF018786"
+            android:fillColor="#008577"
             android:pathData="M 0.0,-6.0 c 3.3137084988,0.0 6.0,2.6862915012 6.0,6.0 c 0.0,3.3137084988 -2.6862915012,6.0 -6.0,6.0 c -3.3137084988,0.0 -6.0,-2.6862915012 -6.0,-6.0 c 0.0,-3.3137084988 2.6862915012,-6.0 6.0,-6.0 Z" />
     </group>
 </vector>
