@@ -6,7 +6,7 @@
             android:innerRadius="2dp"
             android:thickness="2dp"
             android:useLevel="false"
-            android:tint="?attr/colorControlNormal">
+            android:tint="?android:attr/colorControlNormal">
             <solid
                 android:color="@android:color/white" />
             <size
